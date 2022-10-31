@@ -13,6 +13,8 @@ process.stdin.on('data', function (data) {
   let cmd = args.shift();
   if(commands.hasOwnProperty(cmd)){
     commands[cmd](args, done);
+  } else {
+    process.stdout.write('command not found')
   }
 });
 
