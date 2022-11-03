@@ -24,4 +24,15 @@ promiseOne.then(data => {
 	console.log(error);
 })
 
+// con el null se puede manejar el resultado en este caso al colocar en sucessfull null solo se da el resultado de error
+// promiseOne.then( null, error => { /* con ete caso en la ultima segunda promesa manejamos el error */
+// 	console.log(error);
+// })
+
+// hay una funcion que es .catch() que maneja el error
+// .catch(err => console.log(err))
+
+// Callback Hell
+
+
 console.log('HOLIII');
