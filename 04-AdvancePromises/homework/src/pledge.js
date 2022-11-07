@@ -16,7 +16,7 @@ $Promise.prototype._internalResolve =  function (data) {
     if(this._state === 'pending'){
         this._state = 'fulfilled';
         this._value =  data;
-        this._callHandlers()
+        this._callHandlers();
     }
 }
 
@@ -24,35 +24,79 @@ $Promise.prototype._internalReject =  function (reason) {
     if(this._state === 'pending'){
         this._state = 'rejected';
         this._value = reason;
-        this._callHandlers()
+        this._callHandlers();
     }
 }
 
 $Promise.prototype.then = function(successCb, errorCb) { 
     if(typeof successCb !== 'function') successCb = false;
     if(typeof errorCb !== 'function') errorCb = false;
+    const downstreamPromise = new $Promise(function(){});
     this._handlerGroups.push({
         successCb,
-        errorCb
+        errorCb,
+        downstreamPromise
     })
     if(this._state !== 'pending'){
         this._callHandlers()
     }
+    return downstreamPromise;
 }
 
 $Promise.prototype._callHandlers = function(){
     while(this._handlerGroups.length){
         var handler = this._handlerGroups.shift();
         if(this._state === 'fulfilled'){
-            handler.successCb && handler.successCb(this._value);
+            // handler.successCb && handler.successCb(this._value);
+            if(!handler.successCb){
+                handler.downstreamPromise._internalResolve(this._value);
+            } else{
+                try{
+                    const result = handler.successCb(this._value); 
+                    //--> Si arroja error lo que esta aca abajo
+                    //dentro del try NO LO EJECUTA
+                if(result instanceof $Promise){
+                    //handle devolvio una promesa
+                    result.then(value => {
+                        handler.downstreamPromise._internalResolve(value);
+                    }, err => {
+                        handler.downstreamPromise._internalReject(err);
+                    })
+                } else{
+                    // handler devolvio un valor
+                    handler.downstreamPromise._internalResolve(result)
+                }
+                } catch (error){
+                    // handler.downstreamPromise._internalReject(error);
+                    if(!handler.errorCb){
+                         handler.downstreamPromise._internalReject(this.value)
+                    } else{
+                        try {
+                            const result = handler.errorCb(this.value)
+                            // ... no se ejecutara si hay un error desde esta linea en el try
+                            if(result instanceof $Promise){
+                                result.then(value => {
+                                    handler.downstreamPromise._internalResolve(value)
+                                }, err => {
+                                    handler.downstreamPromise._internalReject(err)
+                                })
+                            } else{
+                                handler.downstreamPromise._internalResolve(result);
+                            }
+                        } catch (error) {
+                            handler.downstreamPromise._internalReject(error)
+                        }
+                    }
+                }
+            }
         } else{
             handler.errorCb && handler.errorCb(this._value);
-        }
+        } 
     }
 }
 
 $Promise.prototype.catch = function(errorCb){
-    this.then(null, errorCb)
+    this.then(null, errorCb);
 }
 module.exports = $Promise;
 /*-------------------------------------------------------
